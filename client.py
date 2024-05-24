@@ -6,39 +6,43 @@ PORT = 5050
 FORMAT = 'UTF-8'
 DISCONNECT_MESSAGE = "!DISCONNECT"
 SERVER = socket.gethostbyname(socket.gethostname())
-
 ADDR = (SERVER, PORT)
+
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client.connect(ADDR)
 
-def send(msg):
-    """Envia mensagens para o servidor"""
-    message = msg.encode(FORMAT)
-    msg_length = len(message)
-    send_length = str(msg_length).encode(FORMAT)
-    send_length += b' ' * (HEADER - len(send_length))
-    client.send(send_length)
-    client.send(message)
 
 def receive():
-    """Recebe mensagens do servidor"""
-    while True:
+    connected = True
+    while connected:
         try:
-            msg = client.recv(2048).decode(FORMAT)
-            print(msg)
-        except:
-            print("An error occurred!")
-            client.close()
-            break
+            msg_length = client.recv(HEADER).decode(FORMAT)
+            if msg_length:
+                msg_length = int(msg_length)
+                msg = client.recv(msg_length).decode(FORMAT)
+                print(msg)
+        except ValueError:
+            print("[ERROR] Invalid message format")
+        except ConnectionAbortedError:
+            print("[ERROR] Server closed the connection")
+            connected = False
+        except ConnectionResetError:
+            print("[ERROR] Server forcibly closed the connection")
+            connected = False
+    client.close()
 
-# Cria e inicia a thread para receber mensagens
+
+def send():
+    connected = True
+    while connected:
+        msg = input()
+        if msg == DISCONNECT_MESSAGE:
+            connected = False
+        client.send(msg.encode(FORMAT))
+
+
 receive_thread = threading.Thread(target=receive)
 receive_thread.start()
 
-# Loop para enviar mensagens
-while True:
-    msg = input()
-    if msg == DISCONNECT_MESSAGE:
-        send(DISCONNECT_MESSAGE)
-        break
-    send(msg)
+send_thread = threading.Thread(target=send)
+send_thread.start()
