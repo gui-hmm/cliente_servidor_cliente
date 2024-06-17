@@ -2,8 +2,8 @@ import socket
 import threading
 
 HEADER = 64
-PORT = 5050
-SERVER = socket.gethostbyname(socket.gethostname())  # Obtém automaticamente o endereço IP local
+PORT = 5080
+SERVER = socket.gethostbyname(socket.gethostname())
 ADDR = (SERVER, PORT)
 FORMAT = 'UTF-8'
 DISCONNECT_MESSAGE = "!DISCONNECT"
@@ -16,7 +16,6 @@ clients = []  # Lista para armazenar todas as conexões dos clientes
 
 def handle_client(conn, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
-
     connected = True
     while connected:
         try:
@@ -29,7 +28,7 @@ def handle_client(conn, addr):
                     print(f"[{addr}] disconnected")
                 else:
                     print(f"[{addr}] {msg}")
-                    broadcast(msg)
+                    broadcast(msg, conn)
         except ConnectionResetError:
             connected = False
             print(f"[{addr}] forcibly disconnected")
@@ -41,9 +40,14 @@ def handle_client(conn, addr):
     clients.remove(conn)
 
 
-def broadcast(msg):
+def broadcast(msg, current_conn):
     for client in clients:
-        client.send(msg.encode(FORMAT))
+        if client != current_conn:
+            try:
+                client.send(msg.encode(FORMAT))
+            except BrokenPipeError:
+                clients.remove(client)
+                client.close()
 
 
 def start():

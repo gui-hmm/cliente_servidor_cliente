@@ -2,15 +2,14 @@ import socket
 import threading
 
 HEADER = 64
-PORT = 5050
+PORT = 5080
 FORMAT = 'UTF-8'
 DISCONNECT_MESSAGE = "!DISCONNECT"
-SERVER = socket.gethostbyname(socket.gethostname())
+SERVER = "localhost"  # Use 'localhost' se estiver rodando na mesma máquina que o servidor
 ADDR = (SERVER, PORT)
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client.connect(ADDR)
-
 
 def receive():
     connected = True
@@ -37,12 +36,22 @@ def send():
     while connected:
         msg = input()
         if msg == DISCONNECT_MESSAGE:
+            client.send(msg.encode(FORMAT))
             connected = False
-        client.send(msg.encode(FORMAT))
-
+        else:
+            message = msg.encode(FORMAT)
+            msg_length = len(message)
+            send_length = str(msg_length).encode(FORMAT)
+            send_length += b' ' * (HEADER - len(send_length))
+            client.send(send_length)
+            client.send(message)
+    client.close()
 
 receive_thread = threading.Thread(target=receive)
 receive_thread.start()
 
 send_thread = threading.Thread(target=send)
 send_thread.start()
+
+receive_thread.join()
+send_thread.join()
